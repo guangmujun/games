@@ -28,10 +28,10 @@ print(Train_data.shape, Test_data.shape)
 """
 一、预测值处理，处理目标值长尾分布问题
 """
-Train_data['price'] = np.log1p(Train_data['price'])
+Train_data['price'] = np.log1p(Train_data['price'])             # 对price做log变换
 
 # 合并，方便后续的操作
-df = pd.concat([Train_data, Test_data], ignore_index=True)
+df = pd.concat([Train_data, Test_data], ignore_index=True)     # 合并train和test，一起处理
 
 """
 二、数据简单预处理，分三步进行
@@ -98,6 +98,20 @@ df['power_bin'] = pd.cut(df['power'], bin, labels=False)
 bin = [i * 10 for i in range(24)]
 df['model_bin'] = pd.cut(df['model'], bin, labels=False)
 
+# 基础特征输出
+df.to_csv('../data/data_for_select/base_feature.csv', index=False, sep=' ')
+print('--base_feature已输出--')
+
+# 特征交叉
+
+
+def output_cross_feature(brand_fe, df, name='result'):
+    # 输出构造的交叉特征，用于特征选择
+    features = brand_fe.columns.tolist() + ['price']
+    df[features][:50000].to_csv('../data/data_for_select/'+name+'.csv', index=False, sep=' ')
+    print('--{name}已输出--'.format(name=name))
+
+
 Train_gb = Train_data.groupby('regionCode')
 all_info = {}
 for kind, kind_data in Train_gb:                                # kind表示regionCode中的类型，kind_data表示对应类型的数据
@@ -119,6 +133,8 @@ brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={'index': 'regionCode'})  # 每一列表示一个特征
 # left保留左表的所有数据，on指定用于对齐的列名
 df = df.merge(brand_fe, how='left', on='regionCode')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='regionCode_price')
 
 Train_gb = Train_data.groupby("brand")
 all_info = {}
@@ -139,6 +155,8 @@ for kind, kind_data in Train_gb:
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={"index": "brand"})
 df = df.merge(brand_fe, how='left', on='brand')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='brand_price')
 
 Train_gb = Train_data.groupby("model")
 all_info = {}
@@ -159,6 +177,8 @@ for kind, kind_data in Train_gb:
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={"index": "model"})
 df = df.merge(brand_fe, how='left', on='model')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='model_price')
 
 Train_gb = Train_data.groupby("kilometer")
 all_info = {}
@@ -179,6 +199,9 @@ for kind, kind_data in Train_gb:
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={"index": "kilometer"})
 df = df.merge(brand_fe, how='left', on='kilometer')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='kilometer_price')
+
 
 Train_gb = Train_data.groupby("bodyType")
 all_info = {}
@@ -199,6 +222,8 @@ for kind, kind_data in Train_gb:
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={"index": "bodyType"})
 df = df.merge(brand_fe, how='left', on='bodyType')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='bodyType_price')
 
 Train_gb = Train_data.groupby("fuelType")
 all_info = {}
@@ -219,13 +244,15 @@ for kind, kind_data in Train_gb:
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(
     columns={"index": "fuelType"})
 df = df.merge(brand_fe, how='left', on='fuelType')
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='fuelType_price')
 
 kk = "regionCode"
 Train_gb = df.groupby(kk)
 all_info = {}
 for kind, kind_data in Train_gb:
     info = {}
-    kind_data = kind_data[kind_data['car_age_day'] > 0]
+    kind_data = kind_data[kind_data['car_age_day'] > 0]             # 地区与车龄
     info[kk + '_days_max'] = kind_data.car_age_day.max()
     info[kk + '_days_min'] = kind_data.car_age_day.min()
     info[kk + '_days_std'] = kind_data.car_age_day.std()
@@ -235,12 +262,14 @@ for kind, kind_data in Train_gb:
     all_info[kind] = info
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(columns={"index": kk})
 df = df.merge(brand_fe, how='left', on=kk)
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='regionCode_car_age_day')
 
 Train_gb = df.groupby(kk)
 all_info = {}
 for kind, kind_data in Train_gb:
     info = {}
-    kind_data = kind_data[kind_data['power'] > 0]
+    kind_data = kind_data[kind_data['power'] > 0]                  # 地区与马力
     info[kk + '_power_max'] = kind_data.power.max()
     info[kk + '_power_min'] = kind_data.power.min()
     info[kk + '_power_std'] = kind_data.power.std()
@@ -250,6 +279,8 @@ for kind, kind_data in Train_gb:
     all_info[kind] = info
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(columns={"index": kk})
 df = df.merge(brand_fe, how='left', on=kk)
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='regionCode_power')
 
 # 3. 连续数值特征处理
 dd = 'v_3'
@@ -267,6 +298,8 @@ for kind, kind_data in Train_gb:
     all_info[kind] = info
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(columns={"index": kk})
 df = df.merge(brand_fe, how='left', on=kk)
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='regionCode_v_3')
 
 dd = 'v_0'
 Train_gb = df.groupby(kk)
@@ -283,10 +316,37 @@ for kind, kind_data in Train_gb:
     all_info[kind] = info
 brand_fe = pd.DataFrame(all_info).T.reset_index().rename(columns={"index": kk})
 df = df.merge(brand_fe, how='left', on=kk)
+# 输出构造的交叉特征，用于特征选择
+output_cross_feature(brand_fe, df, name='regionCode_v_0')
+
 
 """
 四、补充的特征工程
 """
+# 主要是对匿名特征和几个重要度较高的分类特征进行特征交叉
+# 第一批特征工程
+feature_for_select = []
+for i in range(15):
+    for j in range(15):
+        df['new'+str(i)+'*'+str(j)] = df['v_'+str(i)]*df['v_'+str(j)]
+        feature_for_select.append('new'+str(i)+'*'+str(j))
+# 输出构造的交叉特征，用于特征选择
+feature_for_select += ['price']
+df[feature_for_select][:50000].to_csv('../data/data_for_select/v_multiply_v.csv', index=False, sep=' ')
+print('--v_multiply_v已输出--')
+
+# 第二批特征工程
+feature_for_select = []
+for i in range(15):
+    for j in range(15):
+        df['new'+str(i)+'+'+str(j)] = df['v_'+str(i)]+df['v_'+str(j)]
+        feature_for_select.append('new' + str(i) + '+' + str(j))
+# 输出构造的交叉特征，用于特征选择
+feature_for_select += ['price']
+df[feature_for_select][:50000].to_csv('../data/data_for_select/v_plus_v.csv', index=False, sep=' ')
+print('--v_plus_v已输出--')
+
+exit(0)
 
 """
 五、筛选特征
